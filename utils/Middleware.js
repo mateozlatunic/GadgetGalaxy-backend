@@ -1,54 +1,51 @@
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
-import User from '../models/Users.js';
-import cookieParser from 'cookie-parser';
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
+const User = require('../models/User.js');
 
-function passwordHash(password) {
-    const salt = bcrypt.genSaltSync();
-    return bcrypt.hashSync(password, salt)
-}
-function comparePassword(raw, hash) {
-    return bcrypt.compareSync(raw, hash)
+// Asinkronizacija hashiranja lozinke
+async function passwordHash(password) {
+    const salt = await bcrypt.genSalt(10);
+    return bcrypt.hash(password, salt);
 }
 
+// Asinkronizacija usporedbe lozinki
+async function comparePassword(raw, hash) {
+    return bcrypt.compare(raw, hash);
+}
 
+// Autentifikacija korisnika i generiranje JWT tokena
 async function authenticateToken(email, password) {
-    let userDb = await User.findOne({ email })
-    if (userDb && userDb.password && comparePassword(password, userDb.password)) {
-        delete userDb.password
-        let token = jwt.sign({ email: userDb.email, role: userDb.role }, process.env.TOKEN_SECRET, { algorithm: "HS512", expiresIn: "1week" })
+    const userDb = await User.findOne({ email });
+    if (userDb && userDb.password && await comparePassword(password, userDb.password)) {
+        const token = jwt.sign({ email: userDb.email, role: userDb.role }, process.env.TOKEN_SECRET, {
+            algorithm: "HS512",
+            expiresIn: "6d"
+        });
 
         return {
             token,
             email: userDb.email,
             role: userDb.role
-        }
-
-
+        };
     } else {
-        throw new Error("Cannot authenticate")
+        throw new Error("Cannot authenticate");
     }
-
 }
 
+// Verifikacija JWT tokena
 function verify(req, res, next) {
     try {
-        let authorization = req.headers.authorization.split(' ')
-        let type = authorization[0]
-        let token = authorization[1]
+        const [type, token] = req.headers.authorization.split(' ');
 
-        if (type !== 'Bearer') {
-            res.status(401).send({ msg: "nije bearer" })
-        } else {
-
-            const decodedToken = jwt.verify(token, process.env.TOKEN_SECRET);
-            req.user = decodedToken;
-            return next()
-
+        if (type !== 'CustomToken ') {
+            return res.status(401).json({ msg: "Token type nije 'CustomToken '" });
         }
-    } catch (e) {
-        res.status(401).send()
 
+        const decodedToken = jwt.verify(token, process.env.TOKEN_SECRET);
+        req.user = decodedToken;
+        next();
+    } catch (e) {
+        res.status(401).send('Invalid token');
     }
 }
 
@@ -57,4 +54,4 @@ module.exports = {
     comparePassword,
     authenticateToken,
     verify
-}
+};

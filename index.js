@@ -3,8 +3,10 @@ const mongoose = require("mongoose");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
 const bodyParser = require("body-parser");
-require('dotenv').config();
+const dotenv = require("dotenv");
+const auth = require("./routes/auth.js");
 
+dotenv.config();
 
 const app = express();
 
@@ -22,9 +24,6 @@ mongoose
   .catch((error) => console.log(error));
 
 console.log("Loaded .env file with mongo URL:", process.env.MONGO_URL);
-
-// Importi ruta
-const auth = require("./routes/auth.js");
 
 // Rute za auth
 app.use("/api/auth", auth);
