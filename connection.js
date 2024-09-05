@@ -11,7 +11,7 @@ const connectToDatabase = async () => {
 
   try {
     console.log("Establishing connection...");
-    const business = new MongoClient(connection, { useNewUrlParser: true, useUnifiedTopology: true });
+    const business = new MongoClient(connection);
     const con = await business.connect(); // Uspostavljanje veze
     db = business.db("aukcija"); // Postavljanje baze podataka
     console.log("Connection to database established.");
