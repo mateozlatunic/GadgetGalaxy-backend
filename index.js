@@ -4,7 +4,7 @@ const cookieParser = require("cookie-parser");
 const bodyParser = require("body-parser");
 const dotenv = require("dotenv");
 const bcrypt = require("bcryptjs"); // Hashiranje lozinki
-const jwt = require('jsonwebtoken');
+const jwt = require("jsonwebtoken");
 const { connectToDatabase } = require("./connection.js"); // Funkcija za povezivanje s bazom podataka
 
 dotenv.config(); // Učitavanje varijabli iz .env datoteke
@@ -26,8 +26,8 @@ connectToDatabase()
     userCollection = db.collection("User");
 
     // -------------------------------------------------------------- Register --------------------------------------------------------------
-    app.post("/register", async (req, res) => {
-      const { username, email, password } = req.body;
+    app.post("/api/register", async (req, res) => {
+      const { username, email, password, userType } = req.body;
 
       // Provjera postoji li već korisnik s tim emailom
       const existingUser = await userCollection.findOne({ email });
@@ -36,18 +36,26 @@ connectToDatabase()
       }
 
       // Provjera duljine lozinke
-      if (password.length < 8) {
-        return res.status(400).send("Lozinka mora biti minimalno 8 znakova");
+      if (password.length < 4) {
+        return res.status(400).send("Lozinka mora biti minimalno 4 znakova");
       }
 
       // Hashiranje lozinke
       const hash_password = await bcrypt.hash(password, 10);
 
       try {
-        // Stvaranje novog korisnika i spremanje u bazu
-        const newUser = { username, email, password: hash_password };
+        // Stvaranje novog korisnika s ulogom i spremanje u bazu
+        const newUser = { username, email, password: hash_password, userType };
         await userCollection.insertOne(newUser);
-        res.status(201).json(newUser);
+
+        const token = jwt.sign(
+          { id: newUser._id, userType: newUser.userType },
+          process.env.JWT_SECRET,
+          {
+            expiresIn: "1h",
+          }
+        );
+        res.status(201).json({ newUser, token });
       } catch (err) {
         console.log("Greška pri kreiranju korisnika:", err);
         res.status(400).send("Pogreška, korisnik nije kreiran");
@@ -55,8 +63,8 @@ connectToDatabase()
     });
 
     // -------------------------------------------------------------- Login --------------------------------------------------------------
-    app.get("/login", async (req, res) => {
-      const { email, password } = req.query;
+    app.post("/api/login", async (req, res) => {
+      const { email, password } = req.body;
 
       // Provjera postoji li korisnik s emailom
       const existingUser = await userCollection.findOne({ email });
@@ -70,16 +78,23 @@ connectToDatabase()
         return res.status(400).send("Neispravni email ili lozinka");
       }
 
-      // Generiran token
-      const token = jwt.sign({ id: existingUser._id }, process.env.JWT_SECRET, {
-        expiresIn: "1h",
-      });
+      // Generiranje tokena i vraćanje uloge
+      const token = jwt.sign(
+        { id: existingUser._id, userType: existingUser.userType },
+        process.env.JWT_SECRET,
+        {
+          expiresIn: "1h",
+        }
+      );
 
       try {
         // Uspješna prijava
-        res
-          .status(200)
-          .json({ message: "Prijava uspješna", user: existingUser });
+        res.status(200).json({
+          message: "Prijava uspješna",
+          token,
+          userType: existingUser.userType,
+          user: existingUser,
+        });
       } catch (err) {
         console.log("Greška pri prijavi korisnika:", err);
         res.status(400).send("Pogreška, prijava nije uspjela");
