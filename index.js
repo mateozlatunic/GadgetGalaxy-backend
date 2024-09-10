@@ -49,7 +49,7 @@ connectToDatabase()
         await userCollection.insertOne(newUser);
 
         const token = jwt.sign(
-          { id: newUser._id, userType: newUser.userType },
+          { id: newUser._id, userType: newUser.userType, username: newUser.username },
           process.env.JWT_SECRET,
           {
             expiresIn: "1h",
@@ -80,7 +80,7 @@ connectToDatabase()
 
       // Generiranje tokena i vraćanje uloge
       const token = jwt.sign(
-        { id: existingUser._id, userType: existingUser.userType },
+        { id: existingUser._id, userType: existingUser.userType, username: existingUser.username },
         process.env.JWT_SECRET,
         {
           expiresIn: "1h",
@@ -92,8 +92,9 @@ connectToDatabase()
         res.status(200).json({
           message: "Prijava uspješna",
           token,
-          userType: existingUser.userType,
           user: existingUser,
+          userType: existingUser.userType,
+          userName: existingUser.username, 
         });
       } catch (err) {
         console.log("Greška pri prijavi korisnika:", err);
