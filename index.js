@@ -49,7 +49,11 @@ connectToDatabase()
         await userCollection.insertOne(newUser);
 
         const token = jwt.sign(
-          { id: newUser._id, userType: newUser.userType, username: newUser.username },
+          {
+            id: newUser._id,
+            userType: newUser.userType,
+            username: newUser.username,
+          },
           process.env.JWT_SECRET,
           {
             expiresIn: "1h",
@@ -80,7 +84,11 @@ connectToDatabase()
 
       // Generiranje tokena i vraćanje uloge
       const token = jwt.sign(
-        { id: existingUser._id, userType: existingUser.userType, username: existingUser.username },
+        {
+          id: existingUser._id,
+          userType: existingUser.userType,
+          username: existingUser.username,
+        },
         process.env.JWT_SECRET,
         {
           expiresIn: "1h",
@@ -94,11 +102,96 @@ connectToDatabase()
           token,
           user: existingUser,
           userType: existingUser.userType,
-          userName: existingUser.username, 
+          userName: existingUser.username,
         });
       } catch (err) {
         console.log("Greška pri prijavi korisnika:", err);
         res.status(400).send("Pogreška, prijava nije uspjela");
+      }
+    });
+
+    // -------------------------------------------------------------- Profile Edit --------------------------------------------------------------
+    app.patch("/api/update_profile", async (req, res) => {
+      const { token, username, email, password } = req.body;
+
+      try {
+        console.log("Primljen zahtjev za ažuriranje profila:", {
+          token,
+          username,
+          email,
+          password,
+        });
+
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        let userId = decoded.id;
+
+        console.log("Token uspješno dekodiran, ID korisnika:", userId);
+
+        // userId u ObjectId
+        const { ObjectId } = require("mongodb");
+        userId = new ObjectId(userId);
+
+        const updateData = {};
+        if (username) {
+          updateData.username = username;
+          console.log("Ažuriranje korisničkog imena:", username);
+        }
+        if (email) {
+          updateData.email = email;
+          console.log("Ažuriranje email adrese:", email);
+        }
+        if (password) {
+          const hash_password = await bcrypt.hash(password, 10);
+          updateData.password = hash_password;
+          console.log("Lozinka hashirana i ažurirana.");
+        }
+
+        const result = await userCollection.updateOne(
+          { _id: userId },
+          { $set: updateData }
+        );
+        console.log("Rezultat ažuriranja:", result);
+
+        if (result.matchedCount === 0) {
+          console.log("Nema korisnika s ovim ID-om:", userId);
+          return res.status(400).send("Korisnik nije pronađen.");
+        }
+
+        res.status(200).send("Podaci uspješno ažurirani");
+      } catch (err) {
+        console.log("Greška pri ažuriranju profila:", err);
+        res.status(400).send("Pogreška pri ažuriranju profila");
+      }
+    });
+
+    // -------------------------------------------------------------- Delete Account --------------------------------------------------------------
+    app.delete("/api/delete_account", async (req, res) => {
+      const { token } = req.body;
+
+      try {
+        console.log("Primljen zahtjev za brisanje računa:", { token });
+
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        let userId = decoded.id;
+
+        // userId u ObjectId
+        const { ObjectId } = require("mongodb");
+        userId = new ObjectId(userId);
+
+        console.log("Token uspješno dekodiran, ID korisnika:", userId);
+
+        const result = await userCollection.deleteOne({ _id: userId });
+        console.log("Rezultat brisanja računa:", result);
+
+        if (result.deletedCount === 0) {
+          console.log("Nema korisnika za brisanje s ovim ID-om:", userId);
+          return res.status(400).send("Račun nije pronađen.");
+        }
+
+        res.status(200).send("Račun uspješno izbrisan");
+      } catch (err) {
+        console.log("Greška pri brisanju računa:", err);
+        res.status(400).send("Pogreška pri brisanju računa");
       }
     });
 
