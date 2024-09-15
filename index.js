@@ -157,7 +157,7 @@ connectToDatabase()
           return res.status(400).send("Korisnik nije pronađen.");
         }
 
-        res.status(200).send("Podaci uspješno ažurirani");
+        res.json({ message: "Podaci uspješno ažurirani" });
       } catch (err) {
         console.log("Greška pri ažuriranju profila:", err);
         res.status(400).send("Pogreška pri ažuriranju profila");
