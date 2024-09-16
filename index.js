@@ -195,6 +195,76 @@ connectToDatabase()
       }
     });
 
+    // -------------------------------------------------------------- Seller --------------------------------------------------------------
+    sellerContent = db.collection("Content");
+
+    app.get("/api/products", async (req, res) => {
+      try {
+        const products = await sellerContent.find({}).toArray();
+        res.status(200).json(products);
+      } catch (err) {
+        console.error("Greška prilikom dohvaćanja proizvoda:", err);
+        res.status(500).send("Greška prilikom dohvaćanja proizvoda.");
+      }
+    });
+
+    app.get("/api/product/:id", async (req, res) => {
+      const { id } = req.params;
+      const { ObjectId } = require("mongodb");
+    
+      // Provjera da  li je ID validan
+      try {
+        if (!ObjectId.isValid(id)) {
+          return res.status(400).send("Neispravan ID formata.");
+        }
+    
+        const product = await sellerContent.findOne({ _id: new ObjectId(id) });
+    
+        if (!product) {
+          return res.status(404).send("Proizvod nije pronađen.");
+        }
+        
+        res.status(200).json(product);
+      } catch (err) {
+        console.error("Greška prilikom dohvaćanja proizvoda:", err);
+        res.status(500).send("Greška prilikom dohvaćanja proizvoda.");
+      }
+    });    
+    
+    app.post("/api/add_product", async (req, res) => {
+      const { name, category, shortDescription, longDescription, price, image, spesification, auctionDuration } = req.body;
+    
+      // Vrijeme završetka aukcije
+      const endTime = new Date();
+      endTime.setSeconds(endTime.getSeconds() + 
+        auctionDuration.days * 86400 + 
+        auctionDuration.hours * 3600 + 
+        auctionDuration.minutes * 60 + 
+        auctionDuration.seconds);
+    
+      try {
+        const newProduct = {
+          name,
+          category,
+          shortDescription,
+          longDescription,
+          price,
+          image,
+          spesification,
+          participant: 0,
+          newPrice: price,
+          auctionEndTime: endTime, // Vrijeme završetka aukcije
+        };
+    
+        await sellerContent.insertOne(newProduct);
+        res.status(201).send("Proizvod je uspješno dodan.");
+      } catch (err) {
+        console.error("Greška prilikom dodavanja proizvoda:", err);
+        res.status(500).send("Greška prilikom dodavanja proizvoda.");
+      }
+    });
+    
+
     // Pokretanje servera
     app.listen(port, () => console.log(`Aktivan port: ${port}`));
   })
