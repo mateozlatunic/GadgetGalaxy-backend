@@ -19,6 +19,8 @@ app.use(express.urlencoded({ extended: false }));
 const port = process.env.PORT || 50000;
 
 let userCollection;
+let userCredentials;
+let sellerContent;
 
 // Povezivanje s MongoDB bazom podataka koristeći MongoDB
 connectToDatabase()
@@ -263,7 +265,36 @@ connectToDatabase()
         res.status(500).send("Greška prilikom dodavanja proizvoda.");
       }
     });
+
+    // -------------------------------------------------------------- Credentials --------------------------------------------------------------
+    userCredentials = db.collection("Resources");
     
+    app.post("/api/save_credentials", async (req, res) => {
+      const { bidAmount, cardNumber, expiryDate, securityCode, cardName } = req.body;
+    
+      // Provjera da li su svi podaci poslani
+      if (!bidAmount || !cardNumber || !expiryDate || !securityCode || !cardName) {
+        return res.status(400).send("Svi podaci su obavezni");
+      }
+    
+      try {
+        // Spremanje podataka u kolekciju Resources
+        const newCredentials = {
+          bidAmount,
+          cardNumber,
+          expiryDate,
+          securityCode,
+          cardName,
+          // timestamp: new Date(), // Vrijeme kada su podaci uneseni
+        };
+    
+        await userCredentials.insertOne(newCredentials);
+        res.status(201).json({ message: "Podaci su uspješno spremljeni" });
+      } catch (err) {
+        console.error("Greška prilikom spremanja podataka:", err);
+        res.status(500).send("Greška prilikom spremanja podataka");
+      }
+    });
 
     // Pokretanje servera
     app.listen(port, () => console.log(`Aktivan port: ${port}`));
